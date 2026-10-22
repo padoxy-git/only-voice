@@ -8,6 +8,10 @@ import zipfile
 
 def smoke(executable):
     assert executable.is_file(), executable
+    if sys.platform == 'win32':
+        import pefile
+        with pefile.PE(str(executable), fast_load=True) as pe:
+            assert pe.OPTIONAL_HEADER.Subsystem == 2, 'Windows entry must use GUI subsystem (no console)'
     subprocess.run([sys.executable, 'packaging/smoke.py', str(executable)], check=True)
 
 

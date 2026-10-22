@@ -19,6 +19,10 @@ source = root / f'rnnoise-{REVISION}'
 (source / 'src/frame_size.c').write_text('#include "rnnoise.h"\nRNNOISE_EXPORT int rnnoise_get_frame_size(void) { return 480; }\n')
 windows = sys.platform == 'win32'
 compiler = os.environ.get('RNNOISE_CC', 'gcc')
+if windows:
+    # GCC's child tools need the MinGW runtime DLLs on PATH as well.
+    os.environ['PATH'] = str(Path(compiler).parent) + os.pathsep + os.environ['PATH']
+subprocess.run([compiler, '--version'], check=True)
 library = root / ('rnnoise.dll' if windows else 'librnnoise.so.0')
 files = ['denoise', 'rnn', 'rnn_data', 'pitch', 'kiss_fft', 'celt_lpc', 'frame_size']
 subprocess.run([compiler, '-shared', '-O3', '-DRNNOISE_BUILD',
