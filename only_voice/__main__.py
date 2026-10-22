@@ -1,3 +1,3 @@
-from .cli import main
+from .tray import main
 
 raise SystemExit(main())

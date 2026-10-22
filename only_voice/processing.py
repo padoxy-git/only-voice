@@ -2,6 +2,8 @@
 
 import ctypes
 import ctypes.util
+from pathlib import Path
+import sys
 
 import numpy as np
 
@@ -20,7 +22,8 @@ class RNNoise:
     """Noise suppression only; it does not identify a target speaker."""
 
     def __init__(self):
-        library = ctypes.util.find_library("rnnoise")
+        bundled = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / ("rnnoise.dll" if sys.platform == "win32" else "librnnoise.so.0")
+        library = str(bundled) if bundled.is_file() else ctypes.util.find_library("rnnoise")
         if not library:
             raise RuntimeError("No se encuentra librnnoise. Instala RNNoise en el sistema.")
         self.lib = ctypes.CDLL(library)

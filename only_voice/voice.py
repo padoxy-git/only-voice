@@ -7,14 +7,14 @@ import wave
 import numpy as np
 
 from .processing import frame_array
-from .application import PROJECT
+from .application import Paths
 from .variants import DEFAULT_PRECISION, model_files
 
 MODEL_REPO = "arbazsiddiqui/voxlock"
 MODEL_REVISION = "a50f4e1d109301d4b6f61dec57ebb1a61e7d8f03"
 MODEL_FILES = model_files()
-MODEL_DIRECTORY = PROJECT / "models/voxlock/onnx"
-PROFILE_PATH = PROJECT / "profiles/me.npz"
+MODEL_DIRECTORY = Paths().models
+PROFILE_PATH = Paths().profile
 
 
 def download_model(directory, precision=DEFAULT_PRECISION):

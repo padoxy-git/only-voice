@@ -2,7 +2,6 @@
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -11,15 +10,28 @@ import subprocess
 import sys
 import time
 import threading
+import uuid
 
 from .variants import DEFAULT_PRECISION, PRECISIONS
 
 PROJECT = Path(__file__).resolve().parents[1]
+WINDOWS = sys.platform == "win32"
+
+
+def data_root():
+    override = os.environ.get("ONLY_VOICE_DATA")
+    if override:
+        return Path(override)
+    if WINDOWS:
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Only Voice"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "only-voice"
 ACTIVE_PHASES = {"starting", "running", "countdown", "recording", "processing", "stopping"}
 
 
 def audio_python():
     """GTK uses system Python; audio keeps its prepared, isolated dependencies."""
+    if getattr(sys, "frozen", False):
+        return sys.executable
     for environment in (".venv-voice", ".venv"):
         executable = PROJECT / environment / "bin/python"
         if executable.is_file() and os.access(executable, os.X_OK):
@@ -29,10 +41,10 @@ def audio_python():
 
 @dataclass(frozen=True)
 class Paths:
-    root: Path = PROJECT
+    root: Path = None
 
     def __post_init__(self):
-        object.__setattr__(self, "root", Path(self.root).resolve())
+        object.__setattr__(self, "root", Path(self.root if self.root is not None else data_root()).resolve())
 
     @property
     def runtime(self):
@@ -52,7 +64,7 @@ class Paths:
 
 def read_json(path, default=None):
     try:
-        value = json.loads(Path(path).read_text())
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
         return value if isinstance(value, dict) else (default or {})
     except (OSError, ValueError):
         return default or {}
@@ -61,10 +73,10 @@ def read_json(path, default=None):
 def write_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        with os.fdopen(descriptor, "w") as stream:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump(value, stream, ensure_ascii=False)
         os.replace(temporary, path)
     finally:
@@ -76,12 +88,39 @@ def lock(path, blocking=True):
     Path(path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
     with os.fdopen(descriptor, "w") as stream:
-        flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
-        fcntl.flock(stream, flags)
-        yield
+        if WINDOWS:
+            import msvcrt
+            if os.fstat(stream.fileno()).st_size == 0:
+                stream.write("0")
+                stream.flush()
+            while True:
+                try:
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as error:
+                    if not blocking:
+                        raise BlockingIOError("Only Voice ya está activo") from error
+                    time.sleep(0.05)
+            try:
+                yield
+            finally:
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+            fcntl.flock(stream, flags)
+            yield
 
 
 def process_identity(pid):
+    if WINDOWS:
+        import psutil
+        try:
+            return str(psutil.Process(int(pid)).create_time())
+        except psutil.Error:
+            return None
     try:
         fields = Path(f"/proc/{int(pid)}/stat").read_text().rsplit(")", 1)[1].split()
         if fields[0] == "Z":
@@ -96,9 +135,16 @@ def is_worker(state, paths):
     if not pid or not state.get("identity") or process_identity(pid) != state["identity"]:
         return False
     try:
-        arguments = Path(f"/proc/{int(pid)}/cmdline").read_bytes().decode().split("\0")
+        if WINDOWS:
+            import psutil
+            try:
+                arguments = psutil.Process(int(pid)).cmdline()
+            except psutil.Error:
+                return False
+        else:
+            arguments = Path(f"/proc/{int(pid)}/cmdline").read_bytes().decode().split("\0")
         position = arguments.index("--project")
-        return "only_voice.worker" in arguments and arguments[position + 1] == str(paths.root)
+        return ("only_voice.worker" in arguments or "--worker" in arguments) and arguments[position + 1] == str(paths.root)
     except (OSError, ValueError, IndexError):
         return False
 
@@ -170,7 +216,10 @@ class Application:
                         raise RuntimeError("El filtro ya está activo. Deténlo antes de cambiar el modo, la variante o el micrófono.")
                     return state
                 raise RuntimeError("Detén el filtro o cancela la grabación antes de continuar.")
-            command = [audio_python(), "-m", "only_voice.worker", "--project", str(self.paths.root),
+            self.paths.file("stop").unlink(missing_ok=True)
+            command = ([sys.executable, "--worker"] if getattr(sys, "frozen", False)
+                       else [audio_python(), "-m", "only_voice.worker"])
+            command += ["--project", str(self.paths.root),
                        "--task", task, "--mode", mode, "--precision", precision]
             if source:
                 command += ["--source", source]
@@ -182,7 +231,8 @@ class Application:
             descriptor = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             with os.fdopen(descriptor, "ab", buffering=0) as log:
                 child = subprocess.Popen(command, cwd=PROJECT, stdin=subprocess.DEVNULL,
-                                         stdout=log, stderr=log, start_new_session=True)
+                                         stdout=log, stderr=log, start_new_session=not WINDOWS,
+                                         creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0)
             with self.children_lock:
                 self.children.append(child)
             try:
@@ -211,7 +261,10 @@ class Application:
         # signal an unrelated process just because a stale PID file mentions it.
         if is_worker(state, self.paths):
             try:
-                os.kill(state["pid"], signal.SIGTERM)
+                if WINDOWS:
+                    self.paths.file("stop").touch()
+                else:
+                    os.kill(state["pid"], signal.SIGTERM)
             except ProcessLookupError:
                 pass
         deadline = time.monotonic() + 8
@@ -220,6 +273,17 @@ class Application:
             if not result["active"]:
                 return result
             time.sleep(0.05)
+        if WINDOWS and is_worker(state, self.paths):
+            # Downloads and ONNX initialization cannot poll the stop marker.
+            # Windows closes WASAPI handles when terminating this verified worker.
+            import psutil
+            process = psutil.Process(state["pid"])
+            if str(process.create_time()) == state["identity"]:
+                process.terminate()
+                process.wait(timeout=5)
+                write_json(self.paths.file("state.json"), {**state, "phase": "stopped",
+                           "message": "Operación cancelada.", "input_db": -60, "output_db": -60})
+                return self.status()
         raise RuntimeError("El proceso sigue cerrando el audio. Vuelve a consultar el estado.")
 
 

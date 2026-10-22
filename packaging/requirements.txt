@@ -1,0 +1,12 @@
+# Release build dependencies (Python 3.12).
+PySide6-Essentials==6.8.3
+numpy==2.5.4
+voxlock==1.1.1
+onnxruntime==1.31.0
+huggingface-hub==0.36.2
+soundfile==0.14.0
+soxr==1.1.0
+psutil==7.2.2
+sounddevice==0.5.6; sys_platform == 'win32'
+pyinstaller==6.22.3
+pytest==9.1.1

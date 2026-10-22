@@ -1,5 +1,3 @@
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -e .
-only-voice doctor
-only-voice devices
+@echo off
+cd /d "%~dp0"
+start "" ".venv\Scripts\pythonw.exe" -m only_voice

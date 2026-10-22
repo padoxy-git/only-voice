@@ -1,0 +1,108 @@
+name: Desktop packages
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: packaging/requirements.txt
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y libpulse0 pulseaudio-utils libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-randr0 libxcb-render-util0 libxcb-xfixes0 libxcb-sync1 libarchive-tools zstd rpm
+      - run: python -m pip install -r packaging/requirements.txt
+      - run: python packaging/build_native.py
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/native
+        run: python -m pytest -q
+      - run: python -m PyInstaller --clean --noconfirm packaging/only-voice.spec
+      - name: Frozen worker smoke test
+        run: python packaging/smoke.py dist/only-voice/only-voice
+      - name: Install nFPM
+        run: |
+          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz -o /tmp/nfpm.tar.gz
+          tar -xzf /tmp/nfpm.tar.gz -C /tmp nfpm
+      - name: Build Linux packages
+        run: |
+          export VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          /tmp/nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+          /tmp/nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+          python packaging/arch_package.py
+          dpkg-deb --info dist/*.deb
+          rpm -qip dist/*.rpm
+          bsdtar -xOf dist/*.pkg.tar.zst .PKGINFO
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: packaging/requirements.txt
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+      - run: python -m pip install -r packaging/requirements.txt
+      - run: python packaging/build_native.py
+      - name: Windows backend and GUI tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD/build/native;$env:PATH"
+          python -m pytest -q tests/test_windows_audio.py tests/test_tray.py tests/test_platform.py tests/test_processing.py tests/test_voice.py tests/test_metering.py
+      - run: python -m PyInstaller --clean --noconfirm packaging/only-voice.spec
+      - name: Frozen worker smoke test
+        run: python packaging/smoke.py dist/OnlyVoice/OnlyVoice.exe
+      - name: Windows installer and portable ZIP
+        shell: pwsh
+        run: |
+          $version = python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])'
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging/windows.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist/OnlyVoice -DestinationPath "dist/OnlyVoice-$version-windows-x64-portable.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          path: |
+            dist/*-setup.exe
+            dist/*-portable.zip
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-packages'
+          merge-multiple: true
+          path: release
+      - name: Publish release with checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Only Voice $GITHUB_REF_NAME" --notes-file ../packaging/RELEASE.md ./*

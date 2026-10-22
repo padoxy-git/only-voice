@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Only Voice
+Comment=Tu voz, en primer plano
+Exec=/opt/only-voice/only-voice
+Icon=only-voice
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupNotify=false

@@ -21,7 +21,7 @@ def desktop_entry(project=PROJECT):
     icon = str(project / "assets/only-voice.svg").replace("\\", "\\\\")
     return ("[Desktop Entry]\nType=Application\nName=Only Voice\n"
             "Comment=Tu voz, en primer plano\n"
-            f"Exec={quote_exec(project / 'only-voice')} gui\n"
+            f"Exec={quote_exec(project / 'only-voice')}\n"
             f"Icon={icon}\nTerminal=false\nCategories=AudioVideo;Audio;\n"
             "StartupNotify=true\nX-OnlyVoice-Launcher=true\n")
 

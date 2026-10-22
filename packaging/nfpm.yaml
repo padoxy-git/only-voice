@@ -1,0 +1,46 @@
+name: only-voice
+arch: amd64
+platform: linux
+version: ${VERSION}
+maintainer: Pablo Dorado <padoxy-git@users.noreply.github.com>
+description: Micrófono virtual con aislamiento de voz, configurado desde la bandeja del sistema.
+homepage: https://github.com/padoxy-git/only-voice
+section: sound
+priority: optional
+contents:
+  - src: dist/only-voice/
+    dst: /opt/only-voice
+  - src: packaging/only-voice.desktop
+    dst: /usr/share/applications/only-voice.desktop
+  - src: assets/only-voice.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/only-voice.svg
+overrides:
+  deb:
+    depends:
+      - libpulse0
+      - pulseaudio-utils
+      - libgl1
+      - libegl1
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-keysyms1
+      - libxcb-shape0
+      - libxcb-xinerama0
+      - libxcb-randr0
+      - libxcb-render-util0
+      - libxcb-xfixes0
+      - libxcb-sync1
+  rpm:
+    depends:
+      - pulseaudio-utils
+      - mesa-libGL
+      - mesa-libEGL
+      - libxkbcommon
+      - libxkbcommon-x11
+      - xcb-util-cursor
+      - xcb-util-wm
+      - xcb-util-keysyms
+      - xcb-util-image
+      - xcb-util-renderutil

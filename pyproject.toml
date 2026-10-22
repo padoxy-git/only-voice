@@ -4,18 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "only-voice"
-version = "0.1.0"
-description = "Micrófono virtual para Linux con reducción de ruido y extracción de una voz"
+version = "0.2.0"
+description = "Micrófono virtual para Windows y Linux con reducción de ruido y extracción de una voz"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26,<3"]
+dependencies = ["numpy>=1.26,<3", "PySide6-Essentials>=6.8,<7", "psutil>=6,<8", "sounddevice>=0.5,<0.6; sys_platform == 'win32'"]
 
 [project.optional-dependencies]
 voice = ["voxlock==1.1.1", "onnxruntime>=1.20,<2", "huggingface-hub>=0.25,<1"]
 enroll = ["voxlock==1.1.1"]
 
-[project.scripts]
-only-voice = "only_voice.cli:main"
+[project.gui-scripts]
+only-voice = "only_voice.tray:main"
 
 [tool.setuptools.packages.find]
 include = ["only_voice*"]

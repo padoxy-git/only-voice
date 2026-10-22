@@ -58,17 +58,17 @@ elif command == "pacat":
 '''
 
 
-class CLIIntegrationTests(unittest.TestCase):
+class WorkerIntegrationTests(unittest.TestCase):
     @unittest.skipUnless(ctypes.util.find_library("rnnoise"), "RNNoise no instalado")
     def test_processes_audio_and_sigterm_removes_virtual_microphone(self):
-        self.exercise_cli("denoise")
+        self.exercise_worker("denoise")
 
     def test_voice_transport_handles_16khz_and_variable_stream_output(self):
         for precision in PRECISIONS:
             with self.subTest(precision=precision):
-                self.exercise_cli("run", precision)
+                self.exercise_worker("run", precision)
 
-    def exercise_cli(self, mode, precision="int8"):
+    def exercise_worker(self, mode, precision="int8"):
         with tempfile.TemporaryDirectory() as directory:
             location = Path(directory)
             for command in ("pactl", "parec", "pacat"):
@@ -77,7 +77,7 @@ class CLIIntegrationTests(unittest.TestCase):
                 executable.chmod(0o700)
             environment = dict(os.environ, ONLY_VOICE_TEST_DIRECTORY=directory)
             environment["PATH"] = directory + os.pathsep + environment.get("PATH", "")
-            arguments = [mode]
+            arguments = ["--project", directory, "--task", "filter", "--mode", "voice" if mode == "run" else "noise"]
             if mode == "run":
                 # A simulated dependency proves our transport integration, not
                 # acoustic separation or compatibility with the real weights.
@@ -101,15 +101,18 @@ class CLIIntegrationTests(unittest.TestCase):
                 )
                 environment["PYTHONPATH"] = directory
                 environment["TEST_PRECISION"] = precision
+                models = location / 'models/voxlock/onnx'
+                models.mkdir(parents=True)
                 for name in model_files(precision):
-                    (location / name).touch()
-                profile = location / "profile.npz"
+                    (models / name).touch()
+                profile = location / "profiles/me.npz"
+                profile.parent.mkdir()
                 np.savez(profile, version=2, backend="voxlock", revision=MODEL_REVISION,
                          mag=np.ones((1, 2)), context=np.ones((1, 2)))
-                arguments += ["--profile", str(profile), "--model", directory, "--precision", precision]
+                arguments += ["--precision", precision]
             with tempfile.TemporaryFile() as errors:
                 process = subprocess.Popen(
-                    [sys.executable, "-m", "only_voice", *arguments],
+                    [sys.executable, "-m", "only_voice.worker", *arguments],
                     cwd=Path(__file__).resolve().parents[1], env=environment,
                     stdout=subprocess.DEVNULL, stderr=errors,
                 )
@@ -120,7 +123,7 @@ class CLIIntegrationTests(unittest.TestCase):
                         if output.exists() and output.stat().st_size >= 1920 * 10:
                             break
                         time.sleep(0.02)
-                    self.assertIsNone(process.poll(), "La CLI salió antes de procesar audio.")
+                    self.assertIsNone(process.poll(), "El worker salió antes de procesar audio.")
                     self.assertTrue(output.exists())
                     self.assertGreaterEqual(output.stat().st_size, 1920 * 10)
                     process.terminate()

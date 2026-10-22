@@ -11,7 +11,10 @@ import time
 import traceback
 
 from .application import Paths, lock, process_identity, write_json
-from .audio import record_reference, run_stream
+if sys.platform == "win32":
+    from .windows_audio import record_reference, run_stream
+else:
+    from .audio import record_reference, run_stream
 from .processing import RNNoise
 from .voice import TargetVoice, enroll, ensure_model, load_engine
 from .variants import DEFAULT_PRECISION, PRECISIONS, VARIANTS
@@ -37,6 +40,8 @@ def main(argv=None):
              "phase": "starting", "message": "Preparando el audio…", "started_at": time.time()}
 
     def update(phase=None, **values):
+        if phase != "stopped" and paths.file("stop").exists():
+            raise KeyboardInterrupt
         if phase:
             state["phase"] = phase
         state.update(values)

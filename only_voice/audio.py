@@ -308,9 +308,9 @@ class AudioStream:
             self.reader.join(timeout=2)
 
 
-def run_stream(processor, requested_source=None, on_event=None):
+def run_stream(processor, requested_source=None, on_event=None, *, routing=None, stream_factory=None, source_resolver=None):
     # Resolve before creating a source to avoid capturing our own output.
-    source = resolve_source(requested_source)
+    source = (source_resolver or resolve_source)(requested_source)
     rate = getattr(processor, "rate", RATE)
     frame_size = getattr(processor, "frame_size", FRAME_SIZE)
     block_ms = frame_size * 1000 / rate
@@ -326,7 +326,7 @@ def run_stream(processor, requested_source=None, on_event=None):
             f"El motor tarda {average * 1000:.1f} ms por bloque de {block_ms:g} ms en este equipo. "
             "No puede seguir el audio en tiempo real."
         )
-    with VirtualMicrophone(rate) as microphone, AudioStream(source, microphone.sink, rate, frame_size) as stream:
+    with (routing or VirtualMicrophone)(rate) as microphone, (stream_factory or AudioStream)(source, microphone.sink, rate, frame_size) as stream:
         print(f"Entrada: {source}\nEn la llamada selecciona el micrófono Only_Voice.\n"
               "Ctrl+C para detener y retirar el micrófono virtual.", file=sys.stderr)
         timings = deque(maxlen=500)
@@ -358,7 +358,7 @@ def run_stream(processor, requested_source=None, on_event=None):
             if on_event and (not ready or time.monotonic() - last_event >= LEVEL_INTERVAL):
                 input_db = float(10 * np.log10(max(input_energy / max(1, input_samples), 1e-18)))
                 output_db = float(10 * np.log10(max(output_energy / max(1, output_samples), 1e-18)))
-                on_event("running", message="Selecciona Only_Voice como micrófono en tu llamada.",
+                on_event("running", message=f"Selecciona {microphone.source if sys.platform == 'win32' else 'Only_Voice'} como micrófono en tu llamada.",
                          source=source, virtual_source=microphone.source,
                          input_db=input_db, output_db=output_db,
                          processing_ms=sum(timings) / len(timings), dropped=dropped)

@@ -180,7 +180,7 @@ class InstallerTests(unittest.TestCase):
             self.assertTrue(destination.is_symlink())
             self.assertEqual(install(prefix), destination)
             desktop = prefix / "share/applications/only-voice.desktop"
-            self.assertIn(" gui\n", desktop.read_text())
+            self.assertNotIn(" gui\n", desktop.read_text())
             self.assertIn("Terminal=false", desktop.read_text())
             destination.unlink()
             destination.write_text("another application")
@@ -190,6 +190,6 @@ class InstallerTests(unittest.TestCase):
 
     def test_desktop_exec_handles_spaces_and_literal_field_codes(self):
         entry = desktop_entry(Path('/tmp/a project/100%'))
-        self.assertIn('Exec="/tmp/a project/100%%/only-voice" gui', entry)
+        self.assertIn('Exec="/tmp/a project/100%%/only-voice"', entry)
         with self.assertRaises(ValueError):
             quote_exec("/tmp/project\nExec=wrong")
