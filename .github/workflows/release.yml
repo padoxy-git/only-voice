@@ -9,6 +9,7 @@ permissions:
 jobs:
   linux:
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -52,6 +53,7 @@ jobs:
             dist/*.pkg.tar.zst
   windows:
     runs-on: windows-2022
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -69,12 +71,13 @@ jobs:
         env:
           RNNOISE_CC: ${{ steps.msys2.outputs.msys2-location }}/mingw64/bin/gcc.exe
       - name: Windows backend and GUI tests
+        timeout-minutes: 5
         env:
           QT_QPA_PLATFORM: offscreen
         shell: pwsh
         run: |
           $env:PATH = "$PWD/build/native;$env:PATH"
-          python -m pytest -q tests/test_windows_audio.py tests/test_tray.py tests/test_platform.py tests/test_processing.py tests/test_voice.py tests/test_metering.py
+          python -m pytest -vv -s -o faulthandler_timeout=30 tests/test_windows_audio.py tests/test_tray.py tests/test_platform.py tests/test_processing.py tests/test_voice.py tests/test_metering.py
       - run: python -m PyInstaller --clean --noconfirm packaging/only-voice.spec
       - name: Frozen worker smoke test
         run: python packaging/smoke.py dist/OnlyVoice/OnlyVoice.exe

@@ -232,7 +232,8 @@ class Application:
             with os.fdopen(descriptor, "ab", buffering=0) as log:
                 child = subprocess.Popen(command, cwd=PROJECT, stdin=subprocess.DEVNULL,
                                          stdout=log, stderr=log, start_new_session=not WINDOWS,
-                                         creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0)
+                                         creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0,
+                                         env={**os.environ, "PYTHONIOENCODING": "utf-8"})
             with self.children_lock:
                 self.children.append(child)
             try:

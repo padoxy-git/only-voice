@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "only-voice"
-version = "0.2.0"
+version = "0.2.1"
 description = "Micrófono virtual para Windows y Linux con reducción de ruido y extracción de una voz"
 readme = "README.md"
 requires-python = ">=3.11"
