@@ -1,120 +1,100 @@
-# Only Voice
+<div align="center">
+  <img src="assets/only-voice.svg" alt="Icono de Only Voice" width="88" height="88">
+  <h1>Only Voice</h1>
+  <p><strong>Tu voz, en primer plano.</strong></p>
+  <p>Un micrófono virtual para reducir el ruido o aislar tu voz en llamadas desde Linux.</p>
+  <p>Procesamiento local · Interfaz gráfica y terminal · PipeWire / PulseAudio</p>
+  <p>
+    <a href="#inicio-rápido">Inicio rápido</a> ·
+    <a href="#uso-diario">Uso diario</a> ·
+    <a href="#solución-de-problemas">Ayuda</a> ·
+    <a href="#desarrollo">Desarrollo</a>
+  </p>
+</div>
 
-Micrófono virtual local para llamadas en Linux. Hay dos modos:
+---
 
-- `denoise`: RNNoise reduce ruido ambiental; no identifica personas.
-- `run`: VoxLock usa un perfil previo para intentar extraer una voz de una mezcla.
+## Qué hace
 
-La reducción de ruido y el aislamiento con VoxLock ya se han probado en el
-escritorio del usuario. La CLI y la ventana comparten un proceso de audio, por
-lo que puedes iniciarlo desde una y detenerlo desde la otra.
+Only Voice procesa el audio de tu micrófono en tu equipo y crea una entrada
+llamada **`Only_Voice`**. Selecciónala en tu aplicación de llamadas para usar
+el audio filtrado.
 
-## Uso diario
+```text
+Tu micrófono → Filtro local → Only_Voice → Aplicación de llamadas
+```
 
-Desde el proyecto, abre la ventana:
+| Modo | Qué hace | Qué necesita |
+| --- | --- | --- |
+| **Solo mi voz** · VoxLock | Intenta extraer tu voz cuando hay otras voces o ruido. | Modelos descargados y un perfil de tu voz. |
+| **Reducir ruido** · RNNoise | Reduce el ruido ambiental; conserva también las voces de otras personas. | `librnnoise`. No necesita un perfil. |
+
+El audio de las llamadas se procesa localmente: no se graba ni se envía a un
+servidor. Tras la preparación inicial, los modelos y el perfil se reutilizan
+sin conexión.
+
+> **Antes de tu primera llamada:** prueba el resultado con tu micrófono.
+> El aislamiento puede dejar pasar otras voces, distorsionar la tuya o recortar palabras.
+
+## Requisitos
+
+| Componente | Requisito |
+| --- | --- |
+| Sistema | Linux con PulseAudio o PipeWire con `pipewire-pulse`. |
+| Audio | Utilidades `pactl`, `parec` y `pacat`, con acceso a la sesión de audio del escritorio. |
+| Python | Python 3.11 o superior. El preparador de voz obtiene Python 3.12 si hace falta. |
+| Primera instalación | Git, Internet y `pip` si no tienes `uv` instalado. |
+| Ventana | GTK 4 y PyGObject del sistema; como alternativa en X11, Tk. |
+| Reducción de ruido | `librnnoise`, necesaria solo para el modo RNNoise. |
+
+En Arch Linux, las dependencias de la ventana se instalan con:
+
+```sh
+sudo pacman -S gtk4 python-gobject
+```
+
+## Inicio rápido
+
+### 1. Descarga el proyecto
+
+```sh
+git clone https://github.com/padoxy-git/only-voice.git
+cd only-voice
+```
+
+### 2. Prepara tu voz y activa el filtro
+
+Desde una terminal de tu escritorio, ejecuta:
+
+```sh
+./voice.sh
+```
+
+El primer arranque prepara el entorno, descarga y comprueba los modelos y,
+si aún no tienes un perfil, graba **15 segundos** de referencia tras una cuenta
+atrás. Habla tú solo, con volumen natural y sin otras voces de fondo.
+
+Al terminar, el filtro queda activo en segundo plano. Los siguientes arranques
+reutilizan la instalación y tu perfil. Esta preparación no necesita `sudo`.
+
+### 3. Selecciona la entrada en tu llamada
+
+En los ajustes de audio de tu aplicación de llamadas, elige
+**`Only_Voice`** como micrófono.
+
+### 4. Abre los controles
 
 ```sh
 ./only-voice gui
 ```
 
-Selecciona el micrófono, deja **Solo mi voz** y pulsa **Activar filtro**. En tu
-aplicación de llamadas, elige **Only_Voice** como entrada. La ventana muestra el
-estado del perfil y los niveles reales de entrada y salida. El modo **Reducir
-ruido** permite usar RNNoise cuando no quieras seleccionar una voz.
-Los niveles reúnen el audio de cada intervalo de unos 80 ms; las barras suavizan
-el movimiento al ritmo de la pantalla, con subida rápida y caída gradual.
+Desde la ventana puedes ver los niveles de audio, detener el filtro o cambiar
+sus ajustes. Para detenerlo desde la terminal, usa `./only-voice stop`.
 
-En **Solo mi voz**, el selector **Variante de voz** permite elegir:
+<details>
+<summary><strong>Solo quiero reducir ruido, sin registrar mi voz</strong></summary>
 
-| Variante | Uso |
-| --- | --- |
-| **Equilibrado · INT8** | Predeterminada. Buen equilibrio entre precisión y consumo de CPU. |
-| **Rápido · INT8-full** | Prioriza el rendimiento en CPU, con algo más de pérdida de precisión. |
-| **Alta precisión · FP16** | Precisión cercana a FP32 y descarga menor; puede consumir más CPU que INT8. |
-| **Precisión completa · FP32** | Modelo de referencia sin cuantización; puede consumir más CPU que INT8. |
-
-La selección se recuerda al activar el filtro. Detén el filtro para cambiar de
-variante. Tu perfil actual sirve para las cuatro: no tienes que volver a grabarte.
-Los archivos que falten se descargan al activar la variante por primera vez;
-la ventana muestra la preparación y permite cancelar el inicio. Después se
-reutilizan sin conexión. Si la descarga o carga falla, se muestra el error sin
-cambiar a otra variante. **Reducir ruido** sigue usando RNNoise y no necesita
-estos modelos.
-
-La precisión numérica no garantiza una mejora audible. Compara las variantes
-con tu micrófono y equipo. No cambian los bloques de 40 ms ni los búferes de
-audio del proyecto; una inferencia más rápida no equivale por sí sola a reducir
-la latencia total de una llamada.
-
-La interfaz GTK usa un tema oscuro basado en `~/.config/eww/DESING.MD`:
-negro OLED, tarjetas `#0a0a0a`, acento verde `#8ac7b0`, Adwaita Sans y controles
-tonales. Su hoja GTK 4 está en `only_voice/styles/zephyx.css`.
-
-**Grabar mi voz** registra 15 segundos tras una cuenta atrás. **Actualizar mi
-voz** sustituye el perfil solo cuando el registro termina correctamente: si
-cancelas o falla, conserva el anterior. Mientras grabas, el botón principal
-permite cancelar. Detén el filtro antes de actualizar la voz o cambiar entrada.
-
-Puedes cerrar la ventana o terminal con el filtro activo: continúa en segundo
-plano hasta que lo desactives. Cerrar la ventana durante un registro cancela
-esa grabación. No se inicia automáticamente al arrancar Linux.
-
-También puedes usar únicamente la terminal:
-
-| Comando | Acción |
-| --- | --- |
-| `./only-voice` o `./only-voice start` | Activar el filtro en segundo plano |
-| `./only-voice stop` | Detenerlo o cancelar el registro |
-| `./only-voice status` | Consultar el estado |
-| `./only-voice profile` | Crear o actualizar la voz con 15 s de grabación |
-| `./only-voice devices` | Ver micrófonos disponibles |
-| `./only-voice logs` | Consultar detalles si algo falla |
-
-Se recuerdan el último micrófono, modo y variante usados. Para elegirlos desde la CLI:
-
-```sh
-./only-voice start --source NOMBRE_DE_ENTRADA
-./only-voice start --mode noise
-./only-voice start --mode voice --precision fp32
-./only-voice profile --wav recordings/me.wav
-```
-
-`start --precision` acepta `int8`, `int8-full`, `fp16` y `fp32`. Sin esa opción
-reutiliza la última selección (inicialmente `int8`). Para cambiar con el filtro
-activo, ejecuta primero `./only-voice stop`. `status` muestra la variante del
-proceso; `status --json` la incluye en el campo `precision`.
-
-### Comando global y menú de aplicaciones
-
-```sh
-./install.sh
-```
-
-Instala un enlace en `~/.local/bin/only-voice` y **Only Voice** en el menú de
-aplicaciones. No necesita `sudo` y no sustituye un comando ajeno con el mismo
-nombre. Después puedes abrir la ventana desde el menú o ejecutar
-`only-voice gui` desde cualquier carpeta. Si `~/.local/bin` no está en tu `PATH`, el
-instalador lo indica; añade ese directorio a la configuración de tu shell.
-No muevas el proyecto después de instalar el enlace.
-
-La ventana usa GTK 4 y PyGObject del sistema, con soporte nativo de Wayland.
-En Arch se instalan con `sudo pacman -S gtk4 python-gobject`. El audio sigue
-usando el entorno preparado por `voice.sh`. Si GTK no está disponible, las
-sesiones X11 pueden usar la ventana alternativa con Tk.
-
-Si la ventana no aparece, ejecuta `./only-voice gui` desde un terminal de tu
-escritorio. Los errores de arranque quedan en `.runtime/gui.log`; también se
-intenta mostrar una notificación del escritorio cuando falla el acceso del menú.
-
-Las lecturas de estado, la consulta de micrófonos y las operaciones de audio se
-ejecutan fuera del hilo gráfico. Solo se actualizan los controles que cambian.
-El lanzador usa Cairo para esta ventana pequeña; puedes elegir otro renderizador
-con `GSK_RENDERER=gl ./only-voice gui`. Esto se aplica únicamente a Only Voice.
-
-## Requisitos e instalación básica
-
-Linux con PulseAudio o PipeWire con `pipewire-pulse`; utilidades `pactl`, `parec`
-y `pacat`; Python 3.11 o superior. El modo `denoise` requiere librnnoise.
+Con `librnnoise` instalada, prepara el entorno básico y comprueba el audio:
 
 ```sh
 python3 -m venv .venv
@@ -124,37 +104,172 @@ python3 -m venv .venv
 ./start.sh
 ```
 
-Sin argumentos, `start.sh` mantiene el modo RNNoise. Selecciona **Only_Voice**
-como entrada en la aplicación de llamadas. Ctrl+C detiene el procesamiento.
+Este lanzador utiliza RNNoise y permanece en primer plano. Selecciona
+**`Only_Voice`** en la llamada y pulsa **Ctrl+C** en la terminal para detenerlo.
+Para elegir una entrada concreta:
 
 ```sh
 ./start.sh denoise --source NOMBRE_DE_ENTRADA
 ```
 
-## Preparar el aislamiento de voz
+También puedes abrir la ventana y elegir **Reducir ruido**, o iniciarlo en
+segundo plano con `./only-voice start --mode noise`.
 
-Ejecuta en una terminal del escritorio, con conexión a Internet:
+</details>
+
+## Uso diario
+
+### Desde la ventana
+
+1. Abre `./only-voice gui` y selecciona tu micrófono.
+2. Elige **Solo mi voz** o **Reducir ruido**.
+3. Pulsa **Activar filtro** y usa **`Only_Voice`** en la llamada.
+4. Al terminar, pulsa **Desactivar filtro**.
+
+La ventana y la terminal controlan el mismo proceso: puedes iniciarlo desde una
+y detenerlo desde la otra. Se recuerdan el último micrófono, modo y variante usados.
+Detén el filtro antes de cambiar estos ajustes o actualizar tu perfil.
+
+> **Cerrar la ventana no detiene el filtro.** Continúa en segundo plano hasta
+> que pulses **Desactivar filtro** o ejecutes `./only-voice stop`.
+> No se inicia automáticamente al arrancar Linux.
+
+### Desde la terminal
+
+| Comando | Acción |
+| --- | --- |
+| `./only-voice` o `./only-voice start` | Activar el filtro en segundo plano. |
+| `./only-voice stop` | Detener el filtro o cancelar el registro de voz. |
+| `./only-voice status` | Consultar el estado y la variante activa. |
+| `./only-voice gui` | Abrir los controles. |
+| `./only-voice devices` | Listar los micrófonos disponibles. |
+| `./only-voice profile` | Crear o actualizar tu perfil con una grabación de 15 segundos. |
+| `./only-voice logs` | Consultar los detalles de actividad y errores. |
+| `./only-voice doctor` | Comprobar dependencias y conexión al servidor de audio. |
+
+Para elegir los ajustes al iniciar:
 
 ```sh
-./voice.sh
+./only-voice start --source NOMBRE_DE_ENTRADA
+./only-voice start --mode noise
+./only-voice start --mode voice --precision fp32
 ```
 
-El lanzador:
+Para consultar el estado desde otro programa, usa `./only-voice status --json`.
 
-1. Prepara `.venv-voice` con Python 3.12 y VoxLock 1.1.1. Obtiene Python con `uv`
-   si hace falta y guarda herramientas y cachés en `.tools/`.
-2. Descarga los modelos ONNX de la variante elegida y comprueba que cargan antes de grabar.
-3. Si falta el perfil, muestra una cuenta atrás y graba 15 segundos. Habla tú
-   solo, sin otras voces de fondo y con volumen natural.
-4. Selecciona los tres segundos de mayor energía y calcula las características
-   de referencia. Guarda `profiles/me.npz` y elimina la grabación temporal.
-5. Arranca el micrófono virtual en segundo plano. Selecciona **Only_Voice** en la llamada.
+### Añadir al menú de aplicaciones
 
-Las siguientes ejecuciones reutilizan entorno, modelos y perfil. No se necesita
-`sudo`. El flujo actual no usa SpeechBrain, PyTorch ni torchaudio; los paquetes
-instalados durante el intento anterior se conservan, pero no se importan.
+Una vez preparado el entorno, ejecuta:
 
-Para elegir una entrada o usar una muestra existente:
+```sh
+./install.sh
+```
+
+Añade **Only Voice** al menú y crea el comando `~/.local/bin/only-voice`.
+Después puedes ejecutar `only-voice gui` desde cualquier carpeta.
+No necesita `sudo` ni sustituye un comando ajeno con el mismo nombre.
+
+Si el instalador lo indica, añade `~/.local/bin` a tu `PATH`.
+**Mantén el proyecto en su ubicación:** el acceso instalado enlaza a esta carpeta.
+
+## Tu perfil de voz
+
+El perfil permite que VoxLock use tu voz como referencia. Para crearlo o
+renovarlo, detén el filtro y pulsa **Grabar mi voz** o **Actualizar mi voz**
+en la ventana. También puedes ejecutar `./only-voice profile`.
+
+| Operación | Comportamiento |
+| --- | --- |
+| Grabar | Registra 15 segundos tras una cuenta atrás. Habla tú solo y con naturalidad. |
+| Actualizar | Sustituye el perfil anterior únicamente si el registro termina correctamente. |
+| Cancelar | Usa el botón de cancelar o `./only-voice stop`. Cerrar la ventana durante el registro también lo cancela. |
+| Guardar | `profiles/me.npz` contiene características de referencia. La grabación temporal se elimina. |
+
+Para utilizar una muestra que ya tengas:
+
+```sh
+./only-voice profile --wav recordings/me.wav
+```
+
+Debe ser un **WAV PCM16 de entre 5 y 60 segundos**, con una sola persona
+hablando. Se convierte a mono y 16 kHz si hace falta. Se rechazan muestras casi
+silenciosas, pero no se comprueba automáticamente cuántas personas hablan.
+
+## Variantes de voz
+
+En **Solo mi voz**, el selector **Variante de voz** ofrece estas opciones:
+
+| Variante | Valor en la CLI | Características |
+| --- | --- | --- |
+| **Equilibrado** · predeterminada | `int8` | Equilibrio entre precisión y consumo de CPU. |
+| **Rápido** | `int8-full` | Prioriza el rendimiento en CPU, con algo más de pérdida de precisión. |
+| **Alta precisión** | `fp16` | Precisión cercana a FP32 y menor descarga; puede consumir más CPU que INT8. |
+| **Precisión completa** | `fp32` | Modelo de referencia sin cuantización; puede consumir más CPU que INT8. |
+
+Tu perfil sirve para las cuatro: **no necesitas volver a grabarte**.
+Detén el filtro para cambiar de variante. La selección se recuerda al activarlo;
+si faltan archivos, se descargan durante la preparación y puedes cancelar el inicio.
+Si una variante falla, se muestra el error sin cambiar a otra automáticamente.
+
+La precisión numérica no garantiza una mejora audible. Una inferencia más
+rápida tampoco equivale por sí sola a una menor latencia total de la llamada.
+
+## Privacidad y límites
+
+- **Audio local:** no se graban llamadas ni se envía su audio a un servidor.
+- **Perfil local:** contiene características de tu voz, no el WAV original; se carga sin `pickle`.
+- **Descargas públicas:** los modelos se solicitan sin utilizar credenciales guardadas.
+- **Datos fuera de Git:** `.gitignore` excluye modelos, perfiles, grabaciones, entornos y credenciales locales.
+- **Micrófono temporal:** no se cambian los dispositivos de audio predeterminados del sistema.
+
+Quedan por validar español, voces solapadas, reverberación, carga elevada de
+CPU y latencia de extremo a extremo. **No hay cancelación de eco acústico.**
+
+## Solución de problemas
+
+| Problema | Qué comprobar |
+| --- | --- |
+| La llamada recibe audio sin filtrar | Selecciona **`Only_Voice`** como entrada en la aplicación de llamadas. |
+| El filtro no arranca | Ejecuta `./only-voice doctor`, `./only-voice status` y `./only-voice logs`. |
+| No aparece la ventana | Abre `./only-voice gui` desde una terminal del escritorio. Consulta `.runtime/gui.log` y comprueba GTK 4 y PyGObject. |
+| Aparece «Falta la instalación local» | Ejecuta `./voice.sh` o prepara el entorno básico de RNNoise. |
+| Falla la descarga de un modelo | Comprueba la conexión y el error mostrado. Un HTTP 401/403 o 404 indica que el archivo no está disponible desde esa conexión. |
+| El audio se corta o el equipo no sigue el ritmo | Revisa los tiempos y bloques descartados en los registros y compara las variantes con tu equipo. |
+| El filtro sigue activo al cerrar la ventana | Ejecuta `./only-voice stop`; cerrar los controles no detiene el proceso. |
+
+Si falla la descarga o carga de un modelo, el inicio se detiene sin pasar a
+transmitir el micrófono original.
+
+<details>
+<summary><strong>Retirar el micrófono virtual tras un cierre abrupto</strong></summary>
+
+Ctrl+C y SIGTERM intentan retirar los módulos de esa ejecución. Si un cierre
+abrupto los deja cargados, localiza los que tengan nombres `only_voice_…`:
+
+```sh
+pactl list modules short
+```
+
+Retira únicamente los módulos de Only Voice con `pactl unload-module ID`,
+primero el `module-remap-source` y después el `module-null-sink`.
+
+</details>
+
+<details>
+<summary><strong>Compatibilidad con perfiles antiguos</strong></summary>
+
+El adaptador anterior basado en `penta2himajin/tse-conv-tasnet-48k` se retiró.
+Sus perfiles JSON no son compatibles con VoxLock. Crea un perfil NPZ con
+`./only-voice profile` o mediante la ventana.
+
+</details>
+
+## Referencia técnica
+
+<details>
+<summary><strong>Comandos avanzados y perfiles adicionales</strong></summary>
+
+El preparador admite entrada, muestra y variante:
 
 ```sh
 ./voice.sh --source NOMBRE_DE_ENTRADA
@@ -162,54 +277,42 @@ Para elegir una entrada o usar una muestra existente:
 ./voice.sh --precision int8-full
 ```
 
-`voice.sh` también recuerda la última variante cuando se omite `--precision`.
-El registro del perfil utiliza siempre el codificador original `enroll.onnx`,
-cuyas características son compatibles con las cuatro variantes. En el primer
-registro con FP16 también se preparan los modelos del modo predeterminado.
+`voice.sh` reutiliza el perfil existente; `--wav` no lo sobrescribe.
+Para actualizarlo utiliza `./only-voice profile --wav recordings/me.wav`.
 
-La muestra externa debe ser WAV PCM16 y durar entre 5 y 60 segundos. Se convierte
-a mono y 16 kHz si hace falta. Se rechazan muestras casi silenciosas, pero no
-se comprueba automáticamente que hable una sola persona.
-
-Para crear otro perfil sin sobrescribir el actual:
+Para crear y utilizar un perfil adicional sin sustituir el principal:
 
 ```sh
 ./start.sh enroll --record --profile profiles/other.npz
 ./start.sh run --profile profiles/other.npz
 ```
 
-Otros comandos útiles:
+Para descargar o comprobar modelos y ajustar la ejecución:
 
 ```sh
-./start.sh check-model
 ./start.sh download-model --precision fp16
 ./start.sh check-model --precision fp16
-./start.sh run --threads 4
 ./start.sh run --precision fp16
+./start.sh run --threads 4
 ./start.sh run --model models/voxlock/onnx --profile profiles/me.npz
 ```
 
-Los comandos de bajo nivel `download-model`, `check-model` y `run` usan INT8
-si se omite `--precision`; no consultan las preferencias de la ventana.
-`run` requiere los archivos locales de la variante indicada.
+`download-model`, `check-model` y `run` usan `int8` si se omite `--precision`:
+no consultan las preferencias de la ventana. `run` requiere los modelos locales
+y permanece en primer plano. `check-model` comprueba que cargan, no su calidad acústica.
 
 `start.sh` usa `.venv-voice` para los comandos de voz cuando está instalado.
-`doctor` informa de dependencias y acceso al servidor; `check-model` comprueba
-que los modelos locales cargan. Ninguno mide la calidad de separación.
+El preparador guarda herramientas y cachés en `.tools/`. El flujo de voz utiliza
+VoxLock y ONNX Runtime; no importa SpeechBrain, PyTorch ni torchaudio.
 
-## Modelo y errores de descarga
+</details>
 
-La primera implementación dependía de `penta2himajin/tse-conv-tasnet-48k`, que
-ahora devuelve HTTP 401 en la descarga pública. Se ha retirado ese adaptador;
-repetir su descarga no resuelve el problema. Sus perfiles JSON no sirven para
-el modelo nuevo: hay que crear un perfil NPZ.
+<details>
+<summary><strong>Modelos y archivos ONNX</strong></summary>
 
-El nuevo adaptador usa la API de streaming de
-[VoxLock 1.1.1](https://pypi.org/project/voxlock/1.1.1/) y el repositorio anunciado
-por su autor, [arbazsiddiqui/voxlock](https://huggingface.co/arbazsiddiqui/voxlock).
-La revisión se fija a `a50f4e1d109301d4b6f61dec57ebb1a61e7d8f03`, igual que en el
-[código de esa API](https://github.com/arbazsiddiqui/voxlock/blob/main/voxlock/core.py).
-Las variantes utilizan estos archivos de `onnx/`:
+El adaptador usa [VoxLock 1.1.1](https://pypi.org/project/voxlock/1.1.1/) y
+los modelos de [arbazsiddiqui/voxlock](https://huggingface.co/arbazsiddiqui/voxlock),
+con la revisión fijada a `a50f4e1d109301d4b6f61dec57ebb1a61e7d8f03`.
 
 | Variante | Codificador | Extractor |
 | --- | --- | --- |
@@ -218,55 +321,50 @@ Las variantes utilizan estos archivos de `onnx/`:
 | `fp16` | `enroll_fp16.onnx` | `chunk_fp16.onnx` |
 | `fp32` | `enroll.onnx` | `chunk.onnx` |
 
-El autor anuncia unos 75 MB para INT8 y licencia Apache-2.0. Estos pesos no se
-redistribuyen en el proyecto. Los archivos compartidos se descargan una sola vez.
+El registro utiliza siempre `enroll.onnx`: selecciona los tres segundos de
+mayor energía de la muestra y calcula las características de referencia.
+En el primer registro con FP16 también se preparan los modelos predeterminados.
+Los archivos compartidos se descargan una sola vez. Los pesos no se redistribuyen
+con el proyecto; consulta su licencia en el repositorio del modelo.
 
-El descargador solicita acceso público con `token=False`,
-sin usar credenciales guardadas. Si recibe HTTP 401/403 o 404, explica que el
-artefacto no está disponible desde esa conexión y se detiene antes de grabar.
-No cambia silenciosamente a transmitir el micrófono original.
+</details>
 
-## Audio, privacidad y latencia
+<details>
+<summary><strong>Audio, latencia e interfaz</strong></summary>
 
-RNNoise procesa mono a 48 kHz en bloques de 480 muestras, 10 ms. VoxLock procesa
-mono a 16 kHz en bloques de 640 muestras, 40 ms, y admite salidas más cortas al
-iniciar el streaming. El servidor de audio puede convertir la frecuencia para
-la aplicación de llamadas. La banda de audio del aislamiento queda limitada
-por los 16 kHz del extractor.
+| Procesador | Audio | Bloque de procesamiento | Búfer solicitado al servidor |
+| --- | --- | --- | --- |
+| RNNoise | Mono, 48 kHz | 480 muestras · 10 ms | 20 ms |
+| VoxLock | Mono, 16 kHz | 640 muestras · 40 ms | 80 ms |
 
-Solo se transporta la salida del procesador. El adaptador utiliza el perfil
-guardado desde el principio, sin autoinscribirse con la voz más fuerte de la
-llamada. El perfil contiene características de referencia, no el WAV original,
-y se carga sin pickle. No se graban llamadas ni se envía su audio a un servidor.
-`models/`, `profiles/`, `recordings/`, `.venv-voice/` y `.tools/` se excluyen de Git.
+El servidor puede ajustar los búferes y convertir la frecuencia para la llamada.
+La banda de audio del aislamiento queda limitada por los 16 kHz del extractor.
+VoxLock admite salidas más cortas al comenzar el procesamiento.
 
 La cola de Python admite tres bloques. Si se descartan bloques antiguos por
-retraso, se reinicia el estado del extractor manteniendo la identidad del
-perfil. No se vuelve a ejecutar la inferencia de registro en ese reinicio.
+retraso, se reinicia el extractor conservando la identidad del perfil, sin
+repetir la inferencia de registro. La comprobación de arranque detiene el proceso
+si el tiempo medio de procesamiento supera la duración del bloque. Cada cinco
+segundos se muestran el tiempo medio y los bloques descartados.
+**Estas cifras no miden la latencia total de una llamada.**
 
-Se solicitan buffers de 20 ms para RNNoise y de 80 ms para VoxLock, que el
-servidor puede ajustar. La comprobación de arranque compara la media de
-procesamiento con la duración de cada bloque; si el equipo no sigue el ritmo,
-se detiene. Cada cinco segundos muestra tiempo medio y bloques descartados.
-**Estos tiempos no equivalen a la latencia total de una llamada.**
+La interfaz GTK 4 admite Wayland y usa un tema oscuro con acento verde, definido
+en `only_voice/styles/zephyx.css`. Las barras reúnen intervalos de unos 80 ms,
+con subida rápida y caída gradual. Las consultas y operaciones de audio se
+ejecutan fuera del hilo gráfico. El renderizador predeterminado es Cairo;
+para probar otro solo en Only Voice:
 
-Los módulos `module-null-sink` y `module-remap-source` son temporales y tienen
-nombres únicos. No se cambian los dispositivos predeterminados del sistema.
-Ctrl+C y SIGTERM intentan retirar solo los módulos de esa ejecución, en orden
-inverso. Si un cierre abrupto los deja cargados, identifica los `only_voice_…`
-con `pactl list modules short` y retira sus identificadores mediante
-`pactl unload-module ID`, primero el remap y después el null sink.
+```sh
+GSK_RENDERER=gl ./only-voice gui
+```
 
-La separación puede dejar voces ajenas, distorsionar la voz elegida o recortar
-palabras. Falta probar español, voces solapadas, reverberación, CPU bajo carga
-y latencia de extremo a extremo. No hay cancelación de eco acústico ni servicio
-que se inicie con Linux.
+</details>
 
 ## Desarrollo
 
-### Trabajo con Git
+### Trabajar con Git
 
-La rama principal es `main`. Para empezar un cambio:
+Empieza cada mejora desde `main` actualizada y crea una rama:
 
 ```sh
 git switch main
@@ -274,7 +372,7 @@ git pull --ff-only
 git switch -c mejora/nombre-del-cambio
 ```
 
-Después de editar y ejecutar las pruebas, revisa y guarda los archivos cambiados:
+Después de editar y comprobar los cambios:
 
 ```sh
 git status
@@ -285,14 +383,13 @@ git commit -m "Describe el cambio"
 git push -u origin HEAD
 ```
 
-`commit` guarda una versión local; `push` la sube a GitHub. Abre allí una pull
-request hacia `main` para revisar e integrar la mejora. En los siguientes envíos
-de la misma rama basta con `git push`.
+**`commit`** guarda una versión local. **`push`** la sube a GitHub.
+Abre una pull request hacia `main` para revisar e integrar la mejora.
+En los siguientes envíos de esa rama basta con `git push`.
 
-No añadas modelos, perfiles de voz, grabaciones ni credenciales: `.gitignore`
-los excluye junto con los entornos y archivos temporales locales.
+### Ejecutar las pruebas
 
-### Pruebas
+Con el entorno de voz preparado:
 
 ```sh
 .venv-voice/bin/python -m unittest discover -s tests -v
@@ -300,26 +397,20 @@ los excluye junto con los entornos y archivos temporales locales.
 bash -n only-voice install.sh start.sh voice.sh
 ```
 
-Las pruebas usan RNNoise real con ruido sintético si está instalado. Para
-VoxLock usan un doble de la API: comprueban perfiles, registro, salida variable,
-reinicio, errores HTTP y el transporte a 16 kHz con procesos de audio simulados.
-También comprueban la limpieza de módulos y muestras temporales ante errores o
-cancelaciones, el proceso compartido por CLI/GUI y el instalador del menú.
-Los controles GTK se comprueban también sin pantalla: seleccionar entrada,
-activar, detener, registrar y cancelar, además de evitar actualizaciones
-repetidas de controles y bloqueos por lecturas lentas. La prueba de la ventana
-nativa se omite cuando no hay acceso a una sesión gráfica; no valida el aspecto
-ni la respuesta visual del escritorio en ese caso.
-No descargan pesos, no acceden al micrófono y **no prueban la
-calidad ni la compatibilidad acústica de los pesos reales**.
+Las pruebas cubren perfiles, registro, variantes, errores de descarga, transporte
+de audio, limpieza de recursos, controles de CLI/GUI e instalación. RNNoise usa
+ruido sintético si está instalado; VoxLock utiliza un doble de su API y procesos
+de audio simulados. Los controles GTK se comprueban también sin pantalla; la
+prueba de la ventana nativa se omite si no hay sesión gráfica disponible.
 
-Se ha comprobado además el nuevo proceso con los pesos reales de VoxLock y un
-servidor de audio simulado: arranque, métricas y parada con retirada de módulos.
-Esto no sustituye una prueba de latencia de extremo a extremo en una llamada.
+No descargan pesos, no acceden al micrófono y no validan la calidad acústica.
+Se ha comprobado además el arranque y la parada con pesos reales y un servidor
+de audio simulado, y ambos modos se han probado en el escritorio de desarrollo.
+Esto no sustituye una medición de latencia de extremo a extremo en una llamada.
 
-Referencias del transporte:
-[módulos PulseAudio en PipeWire](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_modules.html),
-[null sink](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_module_null_sink.html),
-[remap source](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_module_remap_source.html).
-La adaptación PCM de RNNoise sigue el
-[ejemplo de Xiph](https://github.com/xiph/rnnoise/blob/main/examples/rnnoise_demo.c).
+### Referencias
+
+- [API de VoxLock](https://github.com/arbazsiddiqui/voxlock/blob/main/voxlock/core.py).
+- [Módulos PulseAudio en PipeWire](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_modules.html).
+- [Null sink](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_module_null_sink.html) y [remap source](https://pipewire.pages.freedesktop.org/pipewire/page_pulse_module_remap_source.html).
+- [Ejemplo de procesamiento RNNoise de Xiph](https://github.com/xiph/rnnoise/blob/main/examples/rnnoise_demo.c).
