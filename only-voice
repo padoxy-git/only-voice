@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve installed symlinks so models and profiles are independent of cwd.
+launcher_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+project_directory="$(dirname -- "$launcher_path")"
+export PYTHONPATH="$project_directory${PYTHONPATH:+:$PYTHONPATH}"
+for environment in .venv-voice .venv; do
+    if [[ -x "$project_directory/$environment/bin/python" ]]; then
+        exec "$project_directory/$environment/bin/python" -m only_voice "$@"
+    fi
+done
+printf '%s\n' 'Falta la instalación local. Ejecuta ./voice.sh desde el proyecto.' >&2
+exit 1

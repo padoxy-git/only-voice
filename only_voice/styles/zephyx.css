@@ -1,0 +1,59 @@
+/* Adaptado de ~/.config/eww/DESING.MD; GTK 4, sin importar el SCSS de Eww. */
+@define-color panel #000000;
+@define-color card #0a0a0a;
+@define-color selected #1c1c1c;
+@define-color border #303030;
+@define-color text #ececec;
+@define-color muted #999999;
+@define-color accent #8ac7b0;
+@define-color accent_surface #293c35;
+@define-color accent_border #476658;
+@define-color critical #e49b9b;
+
+window.only-voice { background: @panel; color: @text; }
+.only-voice, .only-voice popover { font-family: "Adwaita Sans", sans-serif; font-size: 13px; }
+.only-voice .main { padding: 20px; }
+.only-voice .heading { font-size: 20px; font-weight: 600; }
+.only-voice .subtitle, .only-voice .muted { color: @muted; font-size: 12px; }
+.only-voice .caption { color: @muted; font-size: 12px; font-weight: 500; }
+.only-voice .card { background: @card; border-radius: 12px; padding: 16px; }
+.only-voice .card-title { font-size: 16px; font-weight: 600; }
+.only-voice .badge { background: @selected; color: @muted; border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.only-voice .badge.running { background: @accent_surface; color: @accent; }
+.only-voice .badge.error { color: @critical; }
+.only-voice button {
+  background: @selected; background-image: none; color: @text;
+  border: 1px solid transparent; border-radius: 8px; min-height: 18px;
+  padding: 8px 12px; box-shadow: none; text-shadow: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out, border-color 140ms ease-out;
+}
+.only-voice button:hover { background: #282828; color: #ffffff; }
+.only-voice button:active { background: #353535; }
+.only-voice button:focus-visible, .only-voice dropdown:focus-visible, .only-voice checkbutton:focus-visible {
+  outline: 2px solid @accent; outline-offset: -3px;
+}
+.only-voice button:disabled { color: @muted; background: #141414; opacity: 0.65; }
+.only-voice button.primary { background: @accent; color: @panel; padding: 12px; font-weight: 600; }
+.only-voice button.primary:hover { background: #a0d4c0; }
+.only-voice button.primary:active { background: #75b39c; }
+.only-voice button.primary.stop { background: @accent_surface; color: @accent; border-color: @accent_border; }
+.only-voice button.primary.stop:hover { background: #334a41; }
+.only-voice button.primary:disabled { background: @selected; color: @muted; }
+.only-voice dropdown button { border-color: @border; background: @card; }
+.only-voice dropdown button:hover { background: @selected; }
+.only-voice dropdown popover contents { background: @panel; color: @text; border: 1px solid @border; border-radius: 8px; padding: 4px; }
+.only-voice dropdown listview { background: @panel; color: @text; }
+.only-voice dropdown row { padding: 6px 8px; border-radius: 4px; }
+.only-voice dropdown row:hover { background: @selected; }
+.only-voice dropdown row:selected { background: @accent_surface; color: @accent; }
+.only-voice checkbutton { min-height: 36px; color: @text; }
+.only-voice checkbutton check, .only-voice checkbutton radio { background: @selected; border: 1px solid @muted; box-shadow: none; color: @panel; }
+.only-voice checkbutton check:checked, .only-voice checkbutton radio:checked { background: @accent; border-color: @accent; }
+.only-voice checkbutton:disabled { color: @muted; opacity: 0.65; }
+.only-voice levelbar trough, .only-voice progressbar trough { background: @selected; border-radius: 4px; min-height: 6px; border: none; }
+.only-voice levelbar block { border: none; border-radius: 4px; min-height: 6px; }
+.only-voice levelbar block.filled, .only-voice progressbar progress { background: @accent; border: none; border-radius: 4px; }
+.only-voice levelbar block.empty { background: @selected; }
+.only-voice textview, .only-voice textview text { background: @card; color: @text; }
+.only-voice scrollbar trough { background: @panel; }
+.only-voice scrollbar slider { background: @border; border-radius: 4px; }
