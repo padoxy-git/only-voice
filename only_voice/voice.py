@@ -26,7 +26,7 @@ def download_model(directory, precision=DEFAULT_PRECISION):
         from huggingface_hub import hf_hub_download
         from huggingface_hub.utils import HfHubHTTPError
     except ImportError as error:
-        raise RuntimeError("Faltan dependencias de voz. Ejecuta ./voice.sh.") from error
+        raise RuntimeError("Faltan dependencias de voz. Reinstala Only Voice.") from error
     for name in files:
         if (directory / "onnx" / name).is_file():
             continue
@@ -65,11 +65,11 @@ def load_engine(directory, threads=4, precision=DEFAULT_PRECISION):
     missing = [name for name in model_files(precision) if not (directory / name).is_file()]
     if missing:
         raise FileNotFoundError("Faltan modelos de voz: " + ", ".join(missing)
-                                + f". Ejecuta only-voice download-model --precision {precision}.")
+                                + ". Vuelve a activar el filtro desde Configuración para descargarlos.")
     try:
         from voxlock import VoxLock
     except ImportError as error:
-        raise RuntimeError("Falta VoxLock 1.1.1. Ejecuta ./voice.sh para instalarlo.") from error
+        raise RuntimeError("Falta VoxLock 1.1.1. Reinstala Only Voice.") from error
     # Explicit local path prevents the library from downloading another revision.
     return VoxLock(model_dir=str(directory), precision=precision, threads=threads)
 
@@ -78,7 +78,7 @@ def load_profile(path):
     with np.load(path, allow_pickle=False) as profile:
         if (int(profile["version"]) != 2 or str(profile["backend"]) != "voxlock"
                 or str(profile["revision"]) != MODEL_REVISION):
-            raise ValueError("Perfil incompatible con VoxLock. Crea uno nuevo con enroll.")
+            raise ValueError("Perfil incompatible con VoxLock. Registra tu voz desde Configuración.")
         features = tuple(np.asarray(profile[key], dtype=np.float32) for key in ("mag", "context"))
     if any(not value.size or not np.isfinite(value).all() for value in features):
         raise ValueError("El perfil contiene características vacías o no finitas.")
@@ -102,7 +102,7 @@ def read_reference(path):
         try:
             import soxr
         except ImportError as error:
-            raise RuntimeError("Falta soxr para convertir la muestra a 16 kHz. Ejecuta ./voice.sh.") from error
+            raise RuntimeError("Falta soxr para convertir la muestra a 16 kHz. Reinstala Only Voice.") from error
         samples = soxr.resample(samples, rate, 16_000).astype(np.float32)
     # Select the highest-energy contiguous three seconds, matching the upstream
     # enrollment recipe, rather than accidentally enrolling the opening silence.
@@ -145,7 +145,7 @@ class TargetVoice:
         try:
             from voxlock import Stream
         except ImportError as error:
-            raise RuntimeError("Falta VoxLock 1.1.1. Ejecuta ./voice.sh.") from error
+            raise RuntimeError("Falta VoxLock 1.1.1. Reinstala Only Voice.") from error
         engine = load_engine(directory, threads, precision)
         features = load_profile(profile)
         # Stream calls the encoder once at construction. Cached features avoid

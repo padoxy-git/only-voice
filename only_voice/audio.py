@@ -52,9 +52,9 @@ def resolve_source(requested=None):
     for source in sources():
         if source["name"] == name:
             if not is_microphone(source):
-                raise ValueError("Selecciona un micrófono de entrada con --source; evita monitores y Only Voice.")
+                raise ValueError("Selecciona un micrófono físico en Configuración; evita monitores y Only Voice.")
             return name
-    raise ValueError(f"No existe la entrada {name!r}. Consulta only-voice devices.")
+    raise ValueError(f"No existe la entrada {name!r}. Actualiza los micrófonos desde Configuración.")
 
 
 class VirtualMicrophone:
@@ -328,7 +328,7 @@ def run_stream(processor, requested_source=None, on_event=None, *, routing=None,
         )
     with (routing or VirtualMicrophone)(rate) as microphone, (stream_factory or AudioStream)(source, microphone.sink, rate, frame_size) as stream:
         print(f"Entrada: {source}\nEn la llamada selecciona el micrófono Only_Voice.\n"
-              "Ctrl+C para detener y retirar el micrófono virtual.", file=sys.stderr)
+              "Desactiva el filtro desde el icono de la bandeja para retirar el micrófono virtual.", file=sys.stderr)
         timings = deque(maxlen=500)
         previous = -1
         dropped = 0

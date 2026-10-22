@@ -10,6 +10,7 @@ priority: optional
 contents:
   - src: dist/only-voice/
     dst: /opt/only-voice
+    type: tree
   - src: packaging/only-voice.desktop
     dst: /usr/share/applications/only-voice.desktop
   - src: assets/only-voice.svg

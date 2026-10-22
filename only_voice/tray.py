@@ -218,7 +218,13 @@ class TrayController:
             self.window.message.setText('Espera a que termine la operación antes de salir.')
             return
         self.quitting = True
-        self.submit('quit', self.application.stop)
+        options = self.selection()
+        self.save_timer.stop()
+        def stop():
+            if self.loaded and self.devices_loaded:
+                self.application.save_settings(**options)
+            return self.application.stop()
+        self.submit('quit', stop)
 
     def render(self):
         display = presentation(self.state, self.has_profile, self.window.mode.currentData())

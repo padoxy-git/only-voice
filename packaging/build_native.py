@@ -1,5 +1,6 @@
 """Build a pinned RNNoise library for the frozen application (BSD license)."""
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -17,12 +18,15 @@ source = root / f'rnnoise-{REVISION}'
 # v0.1's stable frame size is not exposed by an accessor until later releases.
 (source / 'src/frame_size.c').write_text('#include "rnnoise.h"\nRNNOISE_EXPORT int rnnoise_get_frame_size(void) { return 480; }\n')
 windows = sys.platform == 'win32'
-compiler = 'C:/msys64/mingw64/bin/gcc.exe' if windows else 'gcc'
+compiler = os.environ.get('RNNOISE_CC', 'gcc')
 library = root / ('rnnoise.dll' if windows else 'librnnoise.so.0')
 files = ['denoise', 'rnn', 'rnn_data', 'pitch', 'kiss_fft', 'celt_lpc', 'frame_size']
 subprocess.run([compiler, '-shared', '-O3', '-DRNNOISE_BUILD',
-                *(['-DWIN32', '-DDLL_EXPORT', '-static-libgcc'] if windows else ['-fPIC']),
+                *(['-DWIN32', '-DDLL_EXPORT', '-static-libgcc'] if windows else ['-fPIC', '-Wl,-soname,librnnoise.so.0']),
                 '-I' + str(source / 'include'), '-I' + str(source / 'src'),
                 *[str(source / f'src/{name}.c') for name in files], '-lm', '-o', str(library)], check=True)
+if not windows:
+    (root / 'librnnoise.so').unlink(missing_ok=True)
+    (root / 'librnnoise.so').symlink_to(library.name)
 shutil.copy(source / 'COPYING', root / 'RNNoise-LICENSE.txt')
 print(library)
